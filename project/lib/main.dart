@@ -1,125 +1,264 @@
+// import 'dart:nativewrappers/_internal/vm/lib/core_patch.dart';
+
 import 'package:flutter/material.dart';
+import 'package:project/theme.dart';
+import 'package:project/data.dart';
+import 'dart:async';
 
 void main() {
-  runApp(const MyApp());
+  runApp(MaterialApp(
+    home: const MyApp(),
+    theme: appTheme,
+  ));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
+  State<MyApp> createState() => _MyAppState();
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class _MyAppState extends State<MyApp> {
+  late List<String> _letters;
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+  late final ScrollController _scrollController;
+  late final TextEditingController _textEditingController;
+  late final FocusNode _textFieldFocusNode;
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+  int _maxRange = 0;
 
-  final String title;
+  bool _isTyping = false;
 
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  double _fill = 0;
+
+  int _letterCount = 0;
+
+  double _offsetForScrolling = 15;
+
+  int _spaceCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _letters = breakDownToLetters();
+    _scrollController = ScrollController();
+    _textEditingController = TextEditingController();
+    _textFieldFocusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _textEditingController.dispose();
+    _textFieldFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _startTyping() {
+    FocusScope.of(context).requestFocus(_textFieldFocusNode);
+
+    _scrollController.animateTo(0,
+        duration: const Duration(seconds: 1), curve: Curves.easeInOut);
+
+    _isTyping = true;
+    _spaceCount = 0;
+
+    Timer.periodic(const Duration(milliseconds: 1), (timer) {
+      if (_counter == 60000) {
+        timer.cancel();
+        _stopTyping();
+      } else {
+        setState(() {
+          _fill += 0.00613;
+          _counter++;
+        });
+      }
     });
   }
 
+  void _stopTyping() {
+    _textFieldFocusNode.unfocus();
+    _maxRange = 0;
+    _counter = 0;
+    _fill = 0;
+    _offsetForScrolling = 15;
+    _isTyping = false;
+  }
+
+  void _onInputChange(text) {
+    if (text == _letters[_maxRange]) {
+      if (text == " ") {
+        _spaceCount++;
+      }
+      setState(() {
+        _maxRange++;
+      });
+    }
+
+    _textEditingController.text = "";
+    _letterCount++;
+
+    if (_letterCount == 15) {
+      _scrollController.animateTo(_offsetForScrolling,
+          duration: const Duration(seconds: 5), curve: Curves.easeInOut);
+      _letterCount = 0;
+      _offsetForScrolling += 15;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
+      backgroundColor: Theme.of(context).primaryColorDark,
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        backgroundColor: Theme.of(context).primaryColor,
+        title: Text("WPM Calculator",
+            style: Theme.of(context).textTheme.titleLarge),
+        centerTitle: true,
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+      body: SingleChildScrollView(
+        child: Padding(
+          padding:
+              const EdgeInsets.only(top: 50, right: 20, left: 20, bottom: 50),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (_isTyping)
+                //Timer animation
+                Container(
+                  height: 15,
+                  width: 372,
+                  decoration: BoxDecoration(
+                      border: Border.all(color: Colors.white, width: 2),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      height: 13,
+                      width: _fill,
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+
+              const SizedBox(
+                height: 10,
+              ),
+
+              // Container for showing the words
+              Container(
+                decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColorLight,
+                    borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.all(10),
+                width: double.infinity,
+                height: 300,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  child: RichText(
+                    text: TextSpan(
+                        style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            height: 1.5,
+                            wordSpacing: 5,
+                            letterSpacing: 3),
+                        children: [
+                          for (int index = 0; index < _letters.length; index++)
+                            if (index < _maxRange)
+                              TextSpan(
+                                  text: _letters[index],
+                                  style: const TextStyle(color: Colors.white))
+                            else
+                              TextSpan(text: _letters[index])
+                        ]),
+                  ),
+                ),
+              ),
+
+              if (!_isTyping)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    MaterialButton(
+                      onPressed: () {
+                        setState(() {
+                          _letters = breakDownToLetters();
+                        });
+                      },
+                      color: Theme.of(context).primaryColorLight,
+                      child: Text(
+                        "Regenerate words",
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                  ],
+                ),
+
+              const SizedBox(
+                height: 30,
+              ),
+
+              //Hidden text field to accept input from the user and match it against the words
+              Offstage(
+                child: TextField(
+                    focusNode: _textFieldFocusNode,
+                    controller: _textEditingController,
+                    onChanged: _onInputChange),
+              ),
+
+              //Button for starting the round
+              if (!_isTyping)
+                MaterialButton(
+                  onPressed: _startTyping,
+                  color: Theme.of(context).primaryColorLight,
+                  child: Text(
+                    "Start Typing",
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge!
+                        .copyWith(fontSize: 25),
+                  ),
+                ),
+
+              //Button for stopping the round
+
+              if (_isTyping)
+                MaterialButton(
+                  onPressed: _stopTyping,
+                  color: Theme.of(context).primaryColorLight,
+                  child: Text(
+                    "Stop",
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+
+              const SizedBox(
+                height: 40,
+              ),
+
+              Column(
+                children: [
+                  Text(
+                    "Your result was",
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  Text("${_spaceCount.toString()} WPM",
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge!
+                          .copyWith(fontSize: 60))
+                ],
+              )
+            ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
